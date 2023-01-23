@@ -1,0 +1,48 @@
+# Terraform Deployment Pipeline
+# Triggers when changes are pushed to the master branch
+
+trigger:
+- master
+
+# Define the environment variables for the pipeline
+variables:
+  - name: TF_VAR_access_key
+    value: $(access_key)
+  - name: TF_VAR_secret_key
+    value: $(secret_key)
+
+# Install Terraform and AWS CLI
+- task: TerraformInstaller@0
+  inputs:
+    terraformVersion: 0.15.0
+
+- task: AWSCLI@2
+  inputs:
+    awsCliVersion: latest
+
+# Initialize the Terraform working directory
+- task: TerraformTaskV1@0
+  inputs:
+    command: init
+    workingDirectory: $(System.DefaultWorkingDirectory)/terraform
+
+# # Plan and Apply the Terraform configuration
+# - task: TerraformTaskV1@0
+#   inputs:
+#     command: plan
+#     workingDirectory: $(System.DefaultWorkingDirectory)/terraform
+
+- task: TerraformTaskV1@0
+  inputs:
+    command: plan
+    workingDirectory: $(System.DefaultWorkingDirectory)/terraform
+    environmentServiceName: terraform
+    additionalArguments: "-var-file=terraform.tfvars"
+
+- task: TerraformTaskV1@0
+  inputs:
+    command: apply
+    workingDirectory: $(System.DefaultWorkingDirectory)/terraform
+    environmentServiceName: terraform
+
+

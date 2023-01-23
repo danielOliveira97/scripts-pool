@@ -1,0 +1,53 @@
+# AWS Deployment Pipeline
+# This pipeline deploys AWS resources using Terraform, retrieves AWS credentials from a secure variable group in a library, and validates the Terraform plan before applying it.
+
+# Define the pipeline trigger and environment variables
+trigger:
+- master
+
+variables:
+  - group: aws-credentials
+
+# Install Terraform and AWS CLI
+- task: TerraformInstaller@0
+  displayName: 'Install Terraform'
+
+- task: AWSCLI@2
+  displayName: 'Install AWS CLI'
+
+# Retrieve AWS credentials from a secure variable group in a library
+- task: LibraryVariableGroup@0
+  displayName: 'Retrieve AWS Credentials'
+  inputs:
+    variableGroupId: '<Your Variable Group ID>'
+
+# Initialize Terraform
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Init'
+  inputs:
+    command: 'init'
+    backendServiceArm: '<Your Azure Subscription>'
+    backendAzureRmResourceGroupName: '<Your Resource Group Name>'
+    backendAzureRmStorageAccountName: '<Your Storage Account Name>'
+    backendAzureRmContainerName: '<Your Container Name>'
+    backendAzureRmKey: 'terraform.tfstate'
+
+# Plan the Terraform deployment
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Plan'
+  inputs:
+    command: 'plan'
+
+# Validate the Terraform plan
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Validate'
+  inputs:
+    command: 'validate'
+
+# Apply the Terraform deployment
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Apply'
+  inputs:
+    command: 'apply'
+    environmentServiceNameAzureRM: '<Your Azure Subscription>'
+    commandOptions: '-auto-approve'

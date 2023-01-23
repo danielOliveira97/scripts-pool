@@ -1,0 +1,26 @@
+resources:
+  - repo: self
+
+parameters:
+  - name: jsonFile
+    type: string
+    default: 'path/to/file.json'
+  - name: jsonParams
+    type: object
+    default: {}
+
+jobs:
+- job: UpdateJson
+  pool:
+    vmImage: 'ubuntu-latest'
+  steps:
+  - script: |
+      echo "Checking if JSON object already exists in $(jsonFile)..."
+      if jq -e '.key' $(jsonFile) > /dev/null; then
+        echo "Object already exists in $(jsonFile), skipping write."
+      else
+        echo "Writing parameters to JSON file at $(jsonFile)..."
+        echo "$(jsonParams)" | jq -c '.key |= . + $(jsonParams)' > $(jsonFile)
+        cat $(jsonFile)
+      fi
+    displayName: 'Update JSON File'
