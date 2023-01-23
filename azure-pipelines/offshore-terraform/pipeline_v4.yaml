@@ -1,5 +1,5 @@
 # AWS Deployment Pipeline
-# This pipeline deploys AWS resources from a Github Enterprise repository passed as a parameter using Terraform and retrieves AWS credentials from a secure variable group
+# This pipeline deploys AWS resources from a Github Enterprise repository using an existing connection passed as a parameter, using Terraform and retrieves AWS credentials from a library variable group
 
 # Define the pipeline trigger and pipeline parameters
 trigger:
@@ -9,6 +9,9 @@ parameters:
   - name: gitRepo
     type: string
     default: 'https://github.mycompany.com/user/repo.git'
+  - name: gitConnection
+    type: string
+    default: 'MyGithubEnterprise'
 
 # Install Terraform and AWS CLI
 - task: TerraformInstaller@0
@@ -17,24 +20,21 @@ parameters:
 - task: AWSCLI@2
   displayName: 'Install AWS CLI'
 
-# Retrieve AWS credentials from a secure variable group
-- task: AzureKeyVault@1
+# Retrieve AWS credentials from a library variable group
+- task: LibraryVariableGroup@1
   displayName: 'Retrieve AWS Credentials'
   inputs:
-    azureSubscription: '<Your Azure Subscription>'
-    keyVaultName: '<Your Key Vault Name>'
-    secretsFilter: |
-      aws_access_key
-      aws_secret_key
+    variableGroupId: '<Your Library Variable Group ID>'
+    variableGroupName: 'aws-credentials'
+    secure: true
 
 # Checkout the Github Enterprise repository containing the Terraform code
-- task: GitClone@0
+- task: Git@2
   displayName: 'Checkout Github Enterprise Repository'
   inputs:
+    connection: '$(gitConnection)'
     repository: '$(gitRepo)'
     branch: '<Your Branch>'
-    authentication: '<Your Authentication Method>'
-    sshKey: '<Your SSH Key>'
 
 # Initialize Terraform
 - task: TerraformTaskV1@0
