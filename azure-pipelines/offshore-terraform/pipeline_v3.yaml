@@ -1,0 +1,64 @@
+# AWS Deployment Pipeline
+# This pipeline deploys AWS resources from a Github repository passed as a parameter using Terraform and retrieves AWS credentials from a secure variable group
+
+# Define the pipeline trigger and pipeline parameters
+trigger:
+- master
+
+parameters:
+  - name: gitRepo
+    type: string
+    default: 'https://github.com/user/repo.git'
+
+# Install Terraform and AWS CLI
+- task: TerraformInstaller@0
+  displayName: 'Install Terraform'
+
+- task: AWSCLI@2
+  displayName: 'Install AWS CLI'
+
+# Retrieve AWS credentials from a secure variable group
+- task: AzureKeyVault@1
+  displayName: 'Retrieve AWS Credentials'
+  inputs:
+    azureSubscription: '<Your Azure Subscription>'
+    keyVaultName: '<Your Key Vault Name>'
+    secretsFilter: |
+      aws_access_key
+      aws_secret_key
+
+# Checkout the Github repository containing the Terraform code
+- task: GitClone@0
+  displayName: 'Checkout Github Repository'
+  inputs:
+    repository: '$(gitRepo)'
+    branch: '<Your Branch>'
+    authentication: '<Your Authentication Method>'
+
+# Initialize Terraform
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Init'
+  inputs:
+    command: 'init'
+    backendServiceArm: '<Your Azure Subscription>'
+    backendAzureRmResourceGroupName: '<Your Resource Group Name>'
+    backendAzureRmStorageAccountName: '<Your Storage Account Name>'
+    backendAzureRmContainerName: '<Your Container Name>'
+    backendAzureRmKey: 'terraform.tfstate'
+    workingDirectory: '<Path to Terraform code in the Github repository>'
+
+# Plan the Terraform deployment
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Plan'
+  inputs:
+    command: 'plan'
+    workingDirectory: '<Path to Terraform code in the Github repository>'
+
+# Apply the Terraform deployment
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Apply'
+  inputs:
+    command: 'apply'
+    environmentServiceNameAzureRM: '<Your Azure Subscription>'
+    commandOptions: '-auto-approve'
+    workingDirectory: '<Path to Terraform code in the Github repository>'
