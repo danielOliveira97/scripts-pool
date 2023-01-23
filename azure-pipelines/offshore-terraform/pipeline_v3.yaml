@@ -1,5 +1,5 @@
 # AWS Deployment Pipeline
-# This pipeline deploys AWS resources from a Github repository passed as a parameter using Terraform and retrieves AWS credentials from a secure variable group
+# This pipeline deploys AWS resources from a Github Enterprise repository passed as a parameter using Terraform and retrieves AWS credentials from a secure variable group
 
 # Define the pipeline trigger and pipeline parameters
 trigger:
@@ -8,7 +8,7 @@ trigger:
 parameters:
   - name: gitRepo
     type: string
-    default: 'https://github.com/user/repo.git'
+    default: 'https://github.mycompany.com/user/repo.git'
 
 # Install Terraform and AWS CLI
 - task: TerraformInstaller@0
@@ -27,13 +27,14 @@ parameters:
       aws_access_key
       aws_secret_key
 
-# Checkout the Github repository containing the Terraform code
+# Checkout the Github Enterprise repository containing the Terraform code
 - task: GitClone@0
-  displayName: 'Checkout Github Repository'
+  displayName: 'Checkout Github Enterprise Repository'
   inputs:
     repository: '$(gitRepo)'
     branch: '<Your Branch>'
     authentication: '<Your Authentication Method>'
+    sshKey: '<Your SSH Key>'
 
 # Initialize Terraform
 - task: TerraformTaskV1@0
@@ -45,14 +46,14 @@ parameters:
     backendAzureRmStorageAccountName: '<Your Storage Account Name>'
     backendAzureRmContainerName: '<Your Container Name>'
     backendAzureRmKey: 'terraform.tfstate'
-    workingDirectory: '<Path to Terraform code in the Github repository>'
+    workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
 
 # Plan the Terraform deployment
 - task: TerraformTaskV1@0
   displayName: 'Terraform Plan'
   inputs:
     command: 'plan'
-    workingDirectory: '<Path to Terraform code in the Github repository>'
+    workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
 
 # Apply the Terraform deployment
 - task: TerraformTaskV1@0
@@ -61,4 +62,4 @@ parameters:
     command: 'apply'
     environmentServiceNameAzureRM: '<Your Azure Subscription>'
     commandOptions: '-auto-approve'
-    workingDirectory: '<Path to Terraform code in the Github repository>'
+    workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
