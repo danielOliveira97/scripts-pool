@@ -1,0 +1,74 @@
+# AWS Deployment Pipeline
+# This pipeline deploys AWS resources from a Github Enterprise repository using an existing connection passed as a parameter, using Terraform and retrieves AWS credentials from a library variable group, and the Terraform backend must be in AWS
+
+# Define the pipeline trigger and pipeline parameters
+trigger:
+- master
+
+parameters:
+  - name: gitRepo
+    type: string
+    default: 'https://github.mycompany.com/user/repo.git'
+  - name: gitConnection
+    type: string
+    default: 'MyGithubEnterprise'
+  - name: env
+    type: string
+    default: 'dev'
+
+# Install Terraform and AWS CLI
+- task: TerraformInstaller@0
+  displayName: 'Install Terraform'
+
+- task: AWSCLI@2
+  displayName: 'Install AWS CLI'
+
+# Retrieve AWS credentials from a library variable group
+- task: LibraryVariableGroup@1
+  displayName: 'Retrieve AWS Credentials'
+  inputs:
+    variableGroupId: '<Your Library Variable Group ID>'
+    variableGroupName: 'aws-credentials-$(env)'
+    secure: true
+
+# Checkout the Github Enterprise repository containing the Terraform code
+- task: Git@2
+  displayName: 'Checkout Github Enterprise Repository'
+  inputs:
+    connection: '$(gitConnection)'
+    repository: '$(gitRepo)'
+    branch: '<Your Branch>'
+
+# Initialize Terraform
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Init'
+  inputs:
+    command: 'init'
+    backendType: 's3'
+    backendConfig: 
+      - {'bucket': '<Your S3 Bucket Name>'}
+      - {'key': 'terraform.tfstate'}
+      - {'region': '<Your AWS Region>'}
+      - {'access_key': '$(AWS_ACCESS_KEY_ID)'}
+      - {'secret_key': '$(AWS_SECRET_ACCESS_KEY)'}
+    workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
+
+# Plan the Terraform deployment
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Plan'
+  inputs:
+    command: 'plan'
+    workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
+    environmentVariables:
+      - name: AWS_REGION
+        value: '<Your AWS Region>'
+
+# Apply the Terraform deployment
+- task: TerraformTaskV1@0
+  displayName: 'Terraform Apply'
+  inputs:
+    command: 'apply'
+    workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
+    environmentVariables:
+      - name: AWS_REGION
+        value: '<Your AWS Region>'
