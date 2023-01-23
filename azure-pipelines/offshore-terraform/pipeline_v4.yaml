@@ -1,5 +1,5 @@
 # AWS Deployment Pipeline
-# This pipeline deploys AWS resources from a Github Enterprise repository using an existing connection passed as a parameter, using Terraform and retrieves AWS credentials from a library variable group
+# This pipeline deploys AWS resources from a Github Enterprise repository using an existing connection passed as a parameter, using Terraform and retrieves AWS credentials from a library variable group, and the Terraform backend must be in AWS
 
 # Define the pipeline trigger and pipeline parameters
 trigger:
@@ -12,6 +12,9 @@ parameters:
   - name: gitConnection
     type: string
     default: 'MyGithubEnterprise'
+  - name: env
+    type: string
+    default: 'dev'
 
 # Install Terraform and AWS CLI
 - task: TerraformInstaller@0
@@ -25,7 +28,7 @@ parameters:
   displayName: 'Retrieve AWS Credentials'
   inputs:
     variableGroupId: '<Your Library Variable Group ID>'
-    variableGroupName: 'aws-credentials'
+    variableGroupName: 'aws-credentials-$(env)'
     secure: true
 
 # Checkout the Github Enterprise repository containing the Terraform code
@@ -41,12 +44,12 @@ parameters:
   displayName: 'Terraform Init'
   inputs:
     command: 'init'
-    backendServiceArm: '<Your Azure Subscription>'
-    backendAzureRmResourceGroupName: '<Your Resource Group Name>'
-    backendAzureRmStorageAccountName: '<Your Storage Account Name>'
-    backendAzureRmContainerName: '<Your Container Name>'
-    backendAzureRmKey: 'terraform.tfstate'
     workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
+    environmentVariables:
+      - name: AWS_ACCESS_KEY_ID
+        value: '$(AWS_ACCESS_KEY_ID)'
+      - name: AWS_SECRET_ACCESS_KEY
+        value: '$(AWS_SECRET_ACCESS_KEY)'
 
 # Plan the Terraform deployment
 - task: TerraformTaskV1@0
@@ -54,12 +57,16 @@ parameters:
   inputs:
     command: 'plan'
     workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
+    environmentVariables:
+      - name: AWS_REGION
+        value: '<Your AWS Region>'
 
 # Apply the Terraform deployment
 - task: TerraformTaskV1@0
   displayName: 'Terraform Apply'
   inputs:
     command: 'apply'
-    environmentServiceNameAzureRM: '<Your Azure Subscription>'
-    commandOptions: '-auto-approve'
     workingDirectory: '<Path to Terraform code in the Github Enterprise repository>'
+    environmentVariables:
+      - name: AWS_REGION
+        value: '<Your AWS Region>'
