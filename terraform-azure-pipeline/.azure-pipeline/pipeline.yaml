@@ -1,0 +1,27 @@
+resources:
+- repo: self
+
+stages:
+- stage: Deploy
+  jobs:
+  - job: Deploy
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: |
+        echo ${{ secrets.AWS_ACCESS_KEY }}
+        echo ${{ secrets.AWS_SECRET_KEY }}
+      displayName: 'Echo AWS credentials'
+    - script: |
+        sudo apt-get update
+        sudo apt-get -y install git make
+      displayName: 'install dependencies'
+    - script: |
+        make install
+      displayName: 'install terraform with tfenv'
+    - script: |
+        make deploy
+      displayName: 'deploy resources'
+    - script: |
+        make clean
+      displayName: 'clean resources'
