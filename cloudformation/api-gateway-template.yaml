@@ -1,0 +1,83 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  PassThroughProxyEndpoint:
+    Description: The proxy URL
+    Type: String
+    Default: "https://jsonplaceholder.typicode.com/{proxy}"
+  ApiGatewayDeploymentStageName:
+    Description: The API Gateway stage for this deployment
+    Type: String
+    Default: dev
+  ClearedIPAddressList:
+    Description: Comma separated list of IP addresses that are allowed to access this API
+    Type: String
+    Default: "8.8.8.8,8.8.8.4"
+Resources:
+  RestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: "API Gateway IP clearance sample"
+      Description: "Sample API to show access restriction using IP clearance."
+      FailOnWarnings: true
+      Body:
+        openapi: 3.0.1
+        info:
+          title: API Gateway with IP clearance
+          description: This API proxies all requests to JSON placeholder site.
+          contact:
+            email: me@example.com
+          version: 1.0.0
+        x-amazon-apigateway-policy:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal: "*"
+              Action: "execute-api:Invoke"
+              Resource: "execute-api:/*/*/*"
+            - Effect: Deny
+              Principal: "*"
+              Action: "execute-api:Invoke"
+              Resource: "execute-api:/*/*/*"
+              Condition:
+                NotIpAddress:
+                  aws:SourceIp: !Split [ "," , !Ref ClearedIPAddressList ]
+
+        paths:
+          /{proxy+}:
+            x-amazon-apigateway-any-method:
+              parameters:
+              - name: proxy
+                in: path
+                required: true
+                type: string
+              x-amazon-apigateway-integration:
+                type: "http_proxy"
+                httpMethod: "ANY"
+                uri: !Ref PassThroughProxyEndpoint
+                passthroughBehavior: "when_no_match"
+                requestParameters:
+                  integration.request.path.proxy: 'method.request.path.proxy'                  
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref RestApi
+      StageName: !Ref ApiGatewayDeploymentStageName
+
+  ApiGatewayStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref ApiGatewayDeployment
+      RestApiId: !Ref RestApi
+      StageName: "LATEST"
+      MethodSettings:
+      - DataTraceEnabled: true
+        MetricsEnabled: true
+        HttpMethod: "*"
+        LoggingLevel: INFO
+        ResourcePath: "/*"
+
+Outputs:
+  ApiGatewayDeploymentURL:
+    Description: The URL for the API to send HTTP requests
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${ApiGatewayStage}/"
