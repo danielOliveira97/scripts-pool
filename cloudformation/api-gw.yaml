@@ -1,0 +1,70 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyVpcLink:
+    Type: AWS::ApiGateway::VpcLink
+    Properties:
+      Name: MyVpcLink
+      TargetArns:
+        - arn:aws:elasticloadbalancing:us-west-2:1234567890:loadbalancer/app/my-internal-alb/1234567890
+  MyApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: MyApi
+  MyResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref MyApi
+      ParentId: !GetAtt MyApi.RootResourceId
+      PathPart: myresource
+  MyMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref MyApi
+      ResourceId: !Ref MyResource
+      HttpMethod: ANY
+      AuthorizationType: NONE
+      Integration:
+        Type: HTTP_PROXY
+        Uri: !Sub "http://${MyVpcLink}.execute-api.us-west-2.amazonaws.com/prod"
+        IntegrationHttpMethod: ANY
+        ConnectionType: VPC_LINK
+        ConnectionId: !Ref MyVpcLink
+  MyIpRange:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref MyApiKey
+      KeyType: IP
+      UsagePlanId: !Ref MyUsagePlan
+  MyApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Name: MyApiKey
+  MyUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      Name: MyUsagePlan
+      ApiStages:
+        - ApiId: !Ref MyApi
+          Stage: prod
+      Quota:
+        Limit: 100
+        Period: MONTH
+      Throttle:
+        BurstLimit: 100
+        RateLimit: 50
+      UsagePlanName: MyUsagePlan
+  MyCustomDomain:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: example.com
+      CertificateArn: arn:aws:acm:us-west-2:1234567890:certificate/1234567890
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+  MyCustomDomainMapping:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName: !Ref MyCustomDomain
+      RestApiId: !Ref MyApi
+      Stage: prod
