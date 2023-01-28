@@ -1,0 +1,49 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyVpcLink:
+    Type: 'AWS::ApiGatewayV2::VpcLink'
+    Properties:
+      Name: 'MyVpcLink'
+      TargetArns:
+        - !Ref MyNetworkLoadBalancer
+  MyApi:
+    Type: 'AWS::ApiGatewayV2::Api'
+    Properties:
+      Name: 'MyApi'
+      ProtocolType: 'HTTP'
+      RouteSelectionExpression: '$request.path'
+  MyApiRoute:
+    Type: 'AWS::ApiGatewayV2::Route'
+    Properties:
+      ApiId: !Ref MyApi
+      RouteKey: 'GET /{proxy+}'
+      Target:
+        Type: 'VPC_LINK'
+        Integration:
+          Type: 'HTTP_PROXY'
+          ConnectionId: !Ref MyVpcLink
+          ConnectionType: 'VPC_LINK'
+  MyApiPolicy:
+    Type: 'AWS::ApiGatewayV2::ApiPolicy'
+    Properties:
+      ApiId: !Ref MyApi
+      Policy:
+        Version: '2012-10-17'
+        Statement:
+          IpAddress:
+            aws:SourceIp:
+              - '10.0.0.0/8'
+              - '172.16.0.0/12'
+              - '192.168.0.0/16'
+  MyDomainName:
+    Type: 'AWS::ApiGateway::DomainName'
+    Properties:
+      DomainName: 'api.example.com'
+      RegionalCertificateArn: 'arn:aws:acm:us-west-2:123456789012:certificate/12345678-1234-1234-1234-123456789012'
+  MyDomainNameMapping:
+    Type: 'AWS::ApiGateway::DomainNameMapping'
+    Properties:
+      DomainName: !Ref MyDomainName
+      ApiMappingKey: 'prod'
+      ApiId: !Ref MyApi
